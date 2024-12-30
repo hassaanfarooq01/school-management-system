@@ -27,6 +27,57 @@ module.exports = class ApiHandler {
     }
 
     /** filter only the modules that have interceptors */
+    // console.log(`# Http API`);
+    // Object.keys(this.managers).forEach(mk => {
+    //     if (this.managers[mk][this.prop]) {
+    //         console.log(`Registering module: ${mk} with exposed methods:`, this.managers[mk][this.prop]);
+    //         this.methodMatrix[mk] = {};
+    //         // console.log(`## ${mk}`);
+    //         this.managers[mk][this.prop].forEach(i => {
+    //             console.log(`Exposing method: ${i} in module: ${mk}`);
+    //             let method = 'post';
+    //             let fnName = i;
+    //             if (i.includes("=")) {
+    //                 let frags = i.split('=');
+    //                 method = frags[0];
+    //                 fnName = frags[1];
+    //             }
+    //             if (!this.methodMatrix[mk][method]) {
+    //                 this.methodMatrix[mk][method] = [];
+    //             }
+    //             this.methodMatrix[mk][method].push(fnName);
+
+    //             let params = getParamNames(this.managers[mk][fnName], fnName, mk);
+    //             params = params.split(',').map(i => {
+    //                 i = i.trim();
+    //                 i = i.replace('{', '');
+    //                 i = i.replace('}', '');
+    //                 return i;
+    //             })
+    //             /** building middlewares stack */
+
+    //             params.forEach(param => {
+    //                 if (!this.mwsStack[`${mk}.${fnName}`]) {
+    //                     this.mwsStack[`${mk}.${fnName}`] = [];
+    //                 }
+    //                 if (param.startsWith('__')) {
+    //                     // this is a middleware identifier 
+    //                     // mws are executed in the same order they existed
+    //                     /** check if middleware exists */
+    //                     // console.log(this.mwsRepo);
+    //                     if (!this.mwsRepo[param]) {
+    //                         throw Error(`Unable to find middleware ${param}`)
+    //                     } else {
+    //                         this.mwsStack[`${mk}.${fnName}`].push(param);
+    //                     }
+    //                 }
+    //             })
+
+    //             // console.log(`* ${i} :`, 'args=', params);
+
+    //         });
+    //     }
+    // });
     registerMethods() {
         Object.keys(this.managers).forEach(mk => {
             if (this.managers[mk][this.prop]) {
@@ -56,30 +107,33 @@ module.exports = class ApiHandler {
             }
         });
 
-        /** expose apis through cortex */
-        Object.keys(this.managers).forEach(mk => {
-            if (this.managers[mk].interceptor) {
-                this.exposed[mk] = this.managers[mk];
-                // console.log(`## ${mk}`);
-                if (this.exposed[mk].cortexExposed) {
-                    this.exposed[mk].cortexExposed.forEach(i => {
-                        // console.log(`* ${i} :`,getParamNames(this.exposed[mk][i]));
-                    })
-                }
-            }
-        });
+        // Final log for methodMatrix
+        console.log('Constructed Method Matrix:', JSON.stringify(this.methodMatrix, null, 2));
 
-        /** expose apis through cortex */
-        this.cortex.sub('*', (d, meta, cb) => {
-            let [moduleName, fnName] = meta.event.split('.');
-            let targetModule = this.exposed[moduleName];
-            if (!targetModule) return cb({ error: `module ${moduleName} not found` });
-            try {
-                targetModule.interceptor({ data: d, meta, cb, fnName });
-            } catch (err) {
-                cb({ error: `failed to execute ${fnName}` });
-            }
-        });
+        //     /** expose apis through cortex */
+        //     Object.keys(this.managers).forEach(mk => {
+        //         if (this.managers[mk].interceptor) {
+        //             this.exposed[mk] = this.managers[mk];
+        //             // console.log(`## ${mk}`);
+        //             if (this.exposed[mk].cortexExposed) {
+        //                 this.exposed[mk].cortexExposed.forEach(i => {
+        //                     // console.log(`* ${i} :`,getParamNames(this.exposed[mk][i]));
+        //                 })
+        //             }
+        //         }
+        //     });
+
+        //     /** expose apis through cortex */
+        //     this.cortex.sub('*', (d, meta, cb) => {
+        //         let [moduleName, fnName] = meta.event.split('.');
+        //         let targetModule = this.exposed[moduleName];
+        //         if (!targetModule) return cb({ error: `module ${moduleName} not found` });
+        //         try {
+        //             targetModule.interceptor({ data: d, meta, cb, fnName });
+        //         } catch (err) {
+        //             cb({ error: `failed to execute ${fnName}` });
+        //         }
+        //     });
 
     }
 
@@ -107,11 +161,18 @@ module.exports = class ApiHandler {
         let fnName = req.params.fnName;
         let moduleMatrix = this.methodMatrix[moduleName];
 
-        this.registerMethods();
+        console.log('Initial Method Matrix:', JSON.stringify(this.methodMatrix, null, 2));
+        this.registerMethods(); // Ensure this updates the shared methodMatrix
+        console.log('Updated Method Matrix:', JSON.stringify(this.methodMatrix, null, 2));
+
 
         if (!moduleMatrix) {
+            console.error(`Module not found: ${moduleName}`);
             return this.managers.responseDispatcher.dispatch(res, { ok: false, message: `module ${moduleName} not found` });
         }
+
+        /** validate module */
+        // if (!moduleMatrix) return this.managers.responseDispatcher.dispatch(res, { ok: false, message: `module ${moduleName} not found` });
 
         /** validate method */
         if (!moduleMatrix[method]) {
@@ -124,8 +185,14 @@ module.exports = class ApiHandler {
             return this.managers.responseDispatcher.dispatch(res, { ok: false, message: `unable to find function ${fnName} with method ${method}` });
         }
 
+        // console.log(`${moduleName}.${fnName}`);
+
         const targetStack = this.mwsStack[`${moduleName}.${fnName}`] || [];
         console.log(`Middleware Stack for ${moduleName}.${fnName}:`, targetStack);
+
+        // if (targetStack.length === 0) {
+        //     console.log(`No middleware found for ${moduleName}.${fnName}. Proceeding without middleware.`);
+        // }
 
         let hotBolt = this.mwsExec.createBolt({
             stack: targetStack, req, res, onDone: async ({ req, res, results }) => {
