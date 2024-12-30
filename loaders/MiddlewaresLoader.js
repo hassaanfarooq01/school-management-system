@@ -1,19 +1,20 @@
 const loader = require('./_common/fileLoader');
 
-module.exports = class MiddlewareLoader { 
+module.exports = class MiddlewareLoader {
 
-    constructor(injectable){
+    constructor(injectable) {
         this.mws = {};
         this.injectable = injectable;
     }
 
-    load(){
+    load() {
         const mws = loader('./mws/**/*.mw.js');
-        Object.keys(mws).map(ik=>{
+        Object.keys(mws).map(ik => {
             /** call the mw builder */
-            mws[ik]=mws[ik](this.injectable);
+            mws[ik] = mws[ik](this.injectable);
         })
+        this.mws.role = mws.__role;
         return mws;
     }
-   
+
 }

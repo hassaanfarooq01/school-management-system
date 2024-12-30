@@ -3,10 +3,10 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 
-module.exports = class UserServer {
+module.exports = class StudentServer {
     constructor({ config, managers }) {
         this.config = config;
-        this.userApi = managers.userApi;
+        this.studentApi = managers.studentApi;
     }
 
     /** for injecting middlewares */
@@ -24,18 +24,15 @@ module.exports = class UserServer {
         /** an error handler */
         app.use((err, req, res, next) => {
             console.error(err.stack);
-            res.status(500).json({ success: false, message: 'Internal Server Error' });
+            res.status(500).send('Something broke!');
         });
 
         /** a single middleware to handle all */
-        app.all('/api/:moduleName/:fnName', (req, res, next) => {
-            console.log(`Received API Call: Module - ${req.params.moduleName}, Function - ${req.params.fnName}`);
-            this.userApi.mw(req, res, next);
-        });
+        app.all('/api/:moduleName/:fnName', this.studentApi.mw);
 
         let server = http.createServer(app);
         server.listen(this.config.dotEnv.USER_PORT, () => {
             console.log(`${(this.config.dotEnv.SERVICE_NAME).toUpperCase()} is running on port: ${this.config.dotEnv.USER_PORT}`);
         });
     }
-}
+};

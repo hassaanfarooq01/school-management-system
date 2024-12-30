@@ -1,0 +1,49 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5111:5111" # USER_PORT
+      - "5222:5222" # ADMIN_PORT
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    environment:
+      SERVICE_NAME: my-service-name
+      ENV: development
+      USER_PORT: 5111
+      ADMIN_PORT: 5222
+      ADMIN_URL: "http://localhost:5222"
+      REDIS_URI: redis://redis:6379
+      CORTEX_REDIS: redis://redis:6379
+      CORTEX_PREFIX: none
+      CORTEX_TYPE: my-service
+      OYSTER_REDIS: redis://redis:6379
+      OYSTER_PREFIX: none
+      CACHE_REDIS: redis://redis:6379
+      CACHE_PREFIX: my-service:ch
+      MONGO_URI: mongodb://mongo:27017/my-service-name
+      LONG_TOKEN_SECRET: my-long-secret
+      SHORT_TOKEN_SECRET: my-short-secret
+      NACL_SECRET: my-nacl-secret
+    depends_on:
+      - redis
+      - mongo
+
+  redis:
+    image: redis:6
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+  mongo:
+    image: mongo:5
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:
