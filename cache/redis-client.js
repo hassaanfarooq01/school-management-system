@@ -13,8 +13,8 @@ const createClient = ({ prefix, url }) => {
 
   console.log({ prefix, url })
 
-  const redis = new Redis(url,{
-    keyPrefix: prefix+":"
+  const redis = new Redis(url + '?family=0', {
+    keyPrefix: prefix + ":"
   });
 
   //register client events
